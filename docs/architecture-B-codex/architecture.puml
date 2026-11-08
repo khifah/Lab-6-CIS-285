@@ -1,0 +1,217 @@
+@startuml B_components
+title Architecture B - centralized layered application
+left to right direction
+skinparam componentStyle rectangle
+actor "Pilot user" as user
+node "Desktop process / Java 21" {
+  component "Presentation\nSwing views + presenters" as swing
+  component "HTTP client\nbackground executor" as client
+  swing --> client
+}
+package "Future clients (not pilot scope)" {
+  component "Web (primary product)" as web
+  component "Android" as android
+  component "iOS" as ios
+}
+node "Java 21 server / modular monolith" {
+  component "Presentation\n/api/v1 HTTP + sessions" as api
+  component "Application\ncommands, queries, authorization\ntransactions + idempotency" as app
+  component "Domain\nAccounts | Groups | Expenses | Approvals\nNotifications | Balances | Payments | Reporting" as domain
+  interface "Persistence / receipt / delivery ports" as ports
+  component "Persistence\nPostgreSQL JDBC adapters + migrations" as jdbc
+  component "Managed receipt adapter" as receipts
+  component "Email verification/reset adapter" as email
+  component "Outbox worker + notice adapter\n(deferred full-product capability)" as worker
+  api --> app
+  app --> domain
+  app --> ports
+  jdbc ..|> ports
+  receipts ..|> ports
+  email ..|> ports
+  worker ..|> ports
+}
+database "PostgreSQL\nsource records + audit\nno balance posting ledger" as db
+folder "Protected receipt bytes" as files
+cloud "Email / future notification provider" as provider
+user --> swing
+client --> api : HTTPS / JSON
+web ..> api : future HTTPS
+android ..> api : future HTTPS
+ios ..> api : future HTTPS
+jdbc --> db
+receipts --> files
+email --> provider
+worker --> db : deferred outbox polling
+worker --> provider : channel TBD
+note bottom of app
+Pilot: accounts, groups, expenses/receipts,
+single review, balances, manual payments.
+Notifications, reports, multi-step review deferred.
+Email delivery must be integrated for full FR-001.
+end note
+note bottom of db
+Only approved shares affect debt.
+Payments reduce debt; queries read a consistent snapshot.
+No client database access or offline writes.
+end note
+@enduml
+
+@startuml B_data
+title Architecture B - core logical relationships
+hide circle
+entity UserAccount {
+  * userId : UUID
+  --
+  normalizedEmail : unique
+  passwordHash
+}
+entity Group {
+  * groupId : UUID
+  --
+  currencyCode
+  minorUnitScale
+}
+entity Membership {
+  * membershipId : UUID
+  --
+  joinedAt
+  leftAt
+  role
+}
+entity ApprovalPolicy {
+  * policyId : UUID
+  --
+  version
+}
+entity PolicyStep {
+  * policyId
+  * sequence
+  --
+  reviewerUserId
+}
+entity Expense {
+  * expenseId : UUID
+  --
+  amount : NUMERIC
+  status
+  expenseDate
+  approvedAt
+  version
+}
+entity ExpenseShare {
+  * expenseId
+  * participantId
+  --
+  allocatedAmount : NUMERIC
+  percentage : NUMERIC
+}
+entity ReviewDecision {
+  * decisionId : UUID
+  --
+  stepSequence
+  reviewerId
+  decidedAt
+}
+entity Receipt {
+  * receiptId : UUID
+  --
+  storageKey
+}
+entity Payment {
+  * paymentId : UUID
+  --
+  payerId
+  payeeId
+  amount : NUMERIC
+  paymentDate
+  recordedBy
+  recordedAt
+}
+entity FinancialCorrection {
+  * correctionId : UUID
+  --
+  sourceType
+  sourceId
+  signedDebtDelta : NUMERIC
+  authorizedBy
+}
+entity OutboxEvent {
+  * eventId : UUID
+}
+entity Notification {
+  * notificationId : UUID
+  --
+  recipientId
+}
+UserAccount ||--o{ Membership
+Group ||--o{ Membership
+Group ||--o{ ApprovalPolicy
+ApprovalPolicy ||--|{ PolicyStep
+ApprovalPolicy ||--o{ Expense : snapshot
+Group ||--o{ Expense
+UserAccount ||--o{ Expense : payer
+Expense ||--|{ ExpenseShare
+UserAccount ||--o{ ExpenseShare : participant
+Expense ||--o{ ReviewDecision
+PolicyStep ||--o{ ReviewDecision : required step
+UserAccount ||--o{ ReviewDecision : reviewer
+Receipt |o--o| Expense : optional receipt
+Group ||--o{ Payment
+UserAccount ||--o{ Payment : payer / payee references
+Group ||--o{ FinancialCorrection
+FinancialCorrection ..> Expense : optional source
+FinancialCorrection ..> Payment : optional source
+Expense ||--o{ OutboxEvent : deferred
+OutboxEvent ||--o{ Notification
+UserAccount ||--o{ Notification : recipient
+note bottom of ExpenseShare
+Balance = approved non-payer shares net of payments
+and authorized correction deltas.
+No Balance or BalancePosting source table.
+Account tokens, sessions, audit and idempotency
+records are detailed in data-model.md.
+end note
+@enduml
+
+@startuml B_approval
+title Architecture B - final approval and immediate balance visibility
+actor Reviewer
+participant "Swing / HTTP client" as Client
+participant "HTTP adapter" as API
+participant "Approval application service" as App
+participant "Domain policy / expense" as Domain
+database PostgreSQL as DB
+Reviewer -> Client : Approve expense
+Client -> API : decision + session + request key + expected version
+API -> App : authenticated intent
+App -> DB : begin; claim idempotency key; lock group and expense
+App -> DB : load current membership, snapshot, decisions
+App -> Domain : authorize, validate version, apply decision
+alt unauthorized / invalid / stale version
+  App -> DB : rollback
+  App --> API : explicit error
+else valid decision
+  App -> DB : insert decision and audit
+  alt all required approvals complete
+    App -> DB : set APPROVED + approvedAt + version
+  else more approvals needed
+    App -> DB : retain PENDING + advance version
+  end
+  App -> DB : store idempotency result; commit
+  App --> API : saved result
+end
+API --> Client : result / error
+Client --> Reviewer : display on EDT
+Reviewer -> Client : View balances
+Client -> API : authorized balance query
+API -> App : query
+App -> DB : consistent snapshot: approved shares minus payments
+DB --> App : pairwise net amounts
+App --> API : decimal-string amounts
+API --> Client : balances
+note over App, DB
+Repeated request key returns saved result.
+No posting worker or financial projection lag.
+Network calls never run on Swing EDT.
+end note
+@enduml
