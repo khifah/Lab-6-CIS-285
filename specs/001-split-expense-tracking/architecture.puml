@@ -1,0 +1,61 @@
+@startuml
+title SplitSmart - Interim Swing MVP and Full-Product Direction
+left to right direction
+skinparam componentStyle rectangle
+
+actor "Pilot user" as pilotUser
+actor "Full-product user" as fullUser
+
+package "Interim desktop pilot (one Java 21 process)" {
+  component "Swing views and presenters\n(EDT for UI work)" as swing
+  component "Application use cases\nauthorization and transactions" as pilotApp
+  component "Domain\nusers, groups, expenses,\napprovals, balances, payments" as pilotDomain
+  interface "Repository / receipt ports" as pilotPorts
+  component "SQLite adapters" as sqliteAdapter
+  database "Local SQLite file" as sqlite
+
+  pilotUser --> swing
+  swing --> pilotApp : in-process use cases
+  pilotApp --> pilotDomain : business rules
+  pilotApp --> pilotPorts : load / save
+  sqliteAdapter ..|> pilotPorts
+  sqliteAdapter --> sqlite
+}
+
+package "Future full product (separate server and clients)" {
+  component "Web client\n(primary customer platform)" as web
+  component "Android client\n(future platform)" as android
+  component "iOS client\n(future platform)" as ios
+  component "Versioned HTTPS API\nauthentication / authorization" as api
+  component "Server application use cases" as serverApp
+  component "Shared domain rules" as serverDomain
+  interface "Server persistence and\nnotification ports" as serverPorts
+  component "Server adapters" as serverAdapter
+  database "Central database" as centralDb
+  component "Notification delivery" as notification
+  cloud "Receipt object storage" as receiptStore
+
+  fullUser --> web
+  fullUser --> android
+  fullUser --> ios
+  web --> api
+  android --> api
+  ios --> api
+  api --> serverApp
+  serverApp --> serverDomain
+  serverApp --> serverPorts
+  serverAdapter ..|> serverPorts
+  serverAdapter --> centralDb
+  serverAdapter --> notification
+  serverAdapter --> receiptStore
+}
+
+note bottom of swing
+Pilot boundary: no production network API,
+cross-device sync, or full notification/reporting workflows.
+end note
+note bottom of api
+Future direction only. Endpoint schemas, identity protocol,
+hosting, and client technologies are not selected here.
+end note
+@enduml
