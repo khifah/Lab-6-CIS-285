@@ -1,5 +1,7 @@
 # Implementation Plan: SplitSmart Baseline Architecture
 
+**Consolidation 2026-11-08:** The owner selected Architecture A. The [consolidated architecture](../../docs/architecture-consolidated/architecture.md) is the proposed detailed design record, with [ADR/change rationale](../../docs/architecture-consolidated/architecture-decision-record.md), [traceability](../../docs/architecture-consolidated/requirements-traceability.md), and [clarification gates](../../docs/architecture-consolidated/requirements-clarification-log.md). Original A/B documentation remains evaluation snapshots. Selection approval does not approve unresolved product policies or verify implementation. Retain one local Swing/SQLite process, one Maven project and the append-only posting ledger; no centralized MVP is introduced.
+
 **Branch**: `001-split-expense-tracking` | **Date**: 2026-11-08 | **Spec**: [spec.md](./spec.md)
 
 ## Summary
@@ -67,9 +69,11 @@ In the pilot, a single local database holds the pilot's users and group activity
 - Represent amounts, percentages, allocations, payments, and balance postings with `BigDecimal`; never convert through `float` or `double`. Parse decimal input from text and use numeric comparison (`compareTo`) for value comparisons.
 - Associate each group with one currency and its minor-unit scale. Reject non-positive expenses/payments and expense amounts with excess fractional precision; the spec sets no maximum amount.
 - Equal split uses selected participants, rounds each preliminary share down to the currency scale, and assigns the entire remainder to the payer, as specified by the feature clarifications.
-- Percentage split requires a total of exactly 100% unless the open input-tolerance question is resolved. Round participant shares down to the currency scale and assign any residual minor units to the payer so allocations reconcile. This allocation rule is a proposed design choice and requires review; it does not resolve the input-tolerance question.
-- Store the submitted expense and per-participant allocation. No balance posting occurs while pending or rejected. Once all required approvals are recorded, atomically post one immutable entry for each non-payer participant's share owed to the payer. The payer's own share is recorded for reconciliation but is not a self-debt.
+- Percentage split validation retains the FR-004 100% baseline; tolerance remains unresolved. Rounding down with residual to payer was an unapproved proposal, not a selected product rule. Record residual-to-payer and largest-remainder options for human decision; block affected rounded-percentage implementation until approved, while retaining percentage capability in scope.
+- Store the submitted expense and per-participant allocation. No balance posting occurs while pending or rejected. Once all required approvals are recorded, atomically post one immutable entry for each positive non-payer participant share owed to the payer. Skip zero shares. The payer's own share is recorded for reconciliation but is not a self-debt.
 - A recorded payment posts the opposite-direction pairwise entry. A pair's displayed net balance is derived from its postings. Enforce unique source references/transaction boundaries so retries cannot apply the same expense or payment twice. The policy for payments exceeding an outstanding balance remains open.
+
+Persist monetary values as normalized decimal TEXT and reconstruct/aggregate with Java BigDecimal, never SQLite REAL or floating-point SQL aggregation. This avoids an artificial fixed minor-unit integer cap. Posting from X to Y increases X's debt to Y; payment P to Q therefore posts Q to P. Use stable `(sourceType, sourceId, sourceLineKey)` uniqueness, per-operation keys/fingerprints and terminal-state guards. Save final approval/postings and payment/postings/audit/result in their respective single SQLite transactions; failures roll back completely. Proposed write reservation/driver handling, exact mapping, membership periods, receipt recovery and reconciliation are detailed in the [consolidated data model](../../docs/architecture-consolidated/data-model.md) and require implementation verification.
 
 ## Testing strategy
 
@@ -91,6 +95,8 @@ Runnable setup and scenario guidance is in [quickstart.md](./quickstart.md).
 - **Limitations/open decisions**: Original customer requirements state web as primary; this plan also records Android/iOS as requested future clients, but defines no delivery commitment or client technology. Notification channels/timing, overpayment handling, percentage tolerance, report filter set, and allowed historical/future dates remain open in [spec.md](./spec.md). Multi-currency conversion, initiating transfers, and notification/email delivery are not added as requirements.
 
 ## Constitution Check
+
+The following PASS labels assess design intent only, not implemented/tested compliance. The current detailed [constitution assessment](../../docs/architecture-consolidated/constitution-compliance.md) distinguishes design alignment, unresolved percentage policy, unavailable execution evidence and required human review.
 
 ### Pre-design gate
 

@@ -1,0 +1,104 @@
+@startuml
+title Selected Architecture A - encapsulated business classes
+skinparam classAttributeIconSize 0
+class Money {
+  -amount : BigDecimal
+  -currencyCode : String
+  +validatePrecision(scale)
+  +add(other) : Money
+}
+class UserAccount {
+  -userId
+  -passwordHash
+  +verifyCredential(candidate)
+}
+class Group {
+  -groupId
+  -currencyCode
+  +addMember(user)
+}
+class Membership {
+  -membershipId
+  -role
+  -joinedAt
+  -leftAt
+  +isActive()
+}
+class Expense {
+  -expenseId
+  -status
+  -version
+  +validateShares()
+  +applyDecision(decision)
+}
+class ExpenseShare {
+  -participantId
+  -allocatedAmount : Money
+}
+interface AllocationStrategy {
+  +allocate(total, participants, payer)
+}
+class EqualAllocator
+class PercentageAllocator <<policy gated>>
+class ApprovalPolicy {
+  -policyId
+  -version
+  +isComplete(decisions)
+}
+class ApprovalStep {
+  -sequence
+  -reviewerMembershipId
+}
+class ReviewDecision {
+  -reviewerId
+  -decision
+  -decidedAt
+}
+class Payment {
+  -paymentId
+  -payerId
+  -payeeId
+  -amount : Money
+  +validate()
+}
+class BalancePosting <<immutable>> {
+  -sourceId
+  -sourceLineKey
+  -fromUserId
+  -toUserId
+  -amount : Money
+}
+class PostingRules {
+  +forApprovedExpense(expense)
+  +forPayment(payment)
+  +netPair(postings)
+}
+class ReceiptReference {
+  -receiptId
+  -storageKey
+}
+UserAccount "1" -- "0..*" Membership
+Group "1" -- "0..*" Membership
+Group "1" -- "0..*" Expense
+Expense "1" *-- "1..*" ExpenseShare
+Expense "0..*" --> "1" ApprovalPolicy : snapshot
+ApprovalPolicy "1" *-- "1..*" ApprovalStep
+Expense "1" -- "0..*" ReviewDecision
+Expense "1" --> "0..1" ReceiptReference
+Group "1" -- "0..*" Payment
+ExpenseShare --> Money
+Payment --> Money
+BalancePosting --> Money
+EqualAllocator ..|> AllocationStrategy
+PercentageAllocator ..|> AllocationStrategy
+Expense ..> AllocationStrategy
+PostingRules ..> Expense
+PostingRules ..> Payment
+PostingRules ..> BalancePosting
+note bottom of PostingRules
+Expense: participant -> payer for positive non-payer share.
+Payment: payee -> payer (compensating debt).
+Application UnitOfWork persists results atomically.
+No Swing, SQL, receipt bytes or external frameworks here.
+end note
+@enduml

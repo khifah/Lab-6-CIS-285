@@ -1,5 +1,7 @@
 # SplitSmart Architecture Validation Quickstart
 
+**Selected Architecture A:** Use the [consolidated test strategy](../../docs/architecture-consolidated/testing-strategy.md) and [clarification gates](../../docs/architecture-consolidated/requirements-clarification-log.md). All scenarios here are planned; none is recorded as passing. Pilot checks cannot establish deferred full-product acceptance.
+
 This guide describes validation for the planned Java Swing MVP. The repository currently contains planning documents only; there is no Maven project or application implementation yet. These commands and outcomes become executable after the implementation phase creates the Maven scaffold.
 
 ## Prerequisites
@@ -24,12 +26,12 @@ Launch the configured Swing main class from the IDE or the project's documented 
 ## Validation scenarios
 
 1. **Equal split and rounding**: Submit an amount that does not divide evenly among participants. Verify all shares sum to the original amount and the full minor-unit remainder goes to the payer.
-2. **Percentage split**: Submit percentages totaling exactly 100% and verify allocated shares reconcile. Verify a non-100% total is rejected pending a clarified tolerance policy.
-3. **Approval and balance**: Submit an expense, verify no balance posting while pending, approve it as an authorized reviewer, then verify postings match the shares. Verify rejection and incomplete multi-step approval produce no postings.
+2. **Percentage split**: Test exact-representable allocations totaling 100% and invalid inputs against the existing baseline. Rounded allocations and tolerance cases require approved policies before acceptance; residual-to-payer is not approved for percentages.
+3. **Approval and balance**: Submit an expense, verify no posting while pending, approve as authorized single reviewer, then check positive non-payer postings. Rejection creates none. Incomplete multi-step checks belong to the deferred full-product phase.
 4. **Payment and retry**: Record a positive payment, confirm its pairwise balance effect and audit fields, then repeat with the same idempotency key and verify no duplicate posting. Verify non-positive amounts are rejected.
 5. **Authorization/history**: Verify a non-member cannot query group activity; remove a member and confirm historical records remain while current access follows the specified permissions.
-6. **Reports**: Query expenses and payments across selected date ranges, verify report-specific date semantics, group permissions, applied filters, and zero totals for empty ranges.
-7. **Responsiveness**: Seed up to 100 group members and 10,000 expenses; measure balance and date-filtered report requests and verify at least 95% display within 3 seconds under a recorded “normal operating conditions” environment.
+6. **Reports — deferred**: Once implemented and semantics approved, query expense/payment ranges, group permissions, echoed filters and empty zero totals. This is not a pilot capability.
+7. **Responsiveness**: Seed up to 100 members/10,000 expenses; measure balance display latency. Date-filtered report measurement is deferred until reports exist. The full target remains at least 95% of both request types displayed within 3 seconds under recorded normal conditions; no whole-product pass from balances alone.
 8. **Swing responsiveness**: Exercise slow repository operations and verify the EDT remains responsive; surface validation and persistence errors rather than silently ignoring them.
 
 ## Test ownership

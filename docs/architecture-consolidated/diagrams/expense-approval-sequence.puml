@@ -1,0 +1,62 @@
+@startuml
+title Selected Architecture A - expense submission and atomic final approval
+actor "Member / reviewer" as Actor
+participant "Swing presenter\nbackground worker" as UI
+participant "Application services" as APP
+participant "Domain rules" as DOMAIN
+database "Local SQLite\nUnitOfWork adapter" as DB
+Actor -> UI : Submit expense
+UI -> APP : actor + details + operation key
+APP -> DB : begin write; lookup/claim key
+alt same key and same fingerprint already committed
+  DB --> APP : original expense/result
+  APP -> DB : end transaction without additional writes
+else new submission
+  APP -> DB : load current membership and policy
+  APP -> DOMAIN : validate / allocate / snapshot policy
+  alt invalid or unresolved affected policy
+    APP -> DB : rollback
+    APP --> UI : explicit error / policy gate
+  else valid
+    APP -> DB : insert PENDING expense, shares, audit, operation result
+    APP -> DB : commit (no balance postings)
+  end
+end
+APP --> UI : submitted result
+UI --> Actor : display on EDT
+Actor -> UI : Approve or reject
+UI -> APP : actor + expense/version + decision + operation key
+APP -> DB : begin write; deduplicate; load state/role/policy
+APP -> DOMAIN : authorize reviewer and validate transition
+alt unauthorized / stale / terminal conflict
+  APP -> DB : rollback; return explicit error
+else previously completed matching operation
+  APP -> DB : end transaction without additional writes
+  APP --> UI : original result
+else valid new decision
+  APP -> DB : insert immutable decision
+  alt rejection
+    APP -> DB : set REJECTED; no postings
+  else approvals incomplete (future multi-step)
+    APP -> DB : retain PENDING; no postings
+  else fully approved
+    APP -> DOMAIN : create positive non-payer share postings
+    DOMAIN --> APP : participant -> expense payer
+    APP -> DB : set APPROVED; insert all uniquely keyed postings
+  end
+  alt any write fails
+    APP -> DB : rollback decision/status/postings/audit/key result
+  else all writes valid
+    APP -> DB : save audit + operation result; commit
+  end
+end
+APP --> UI : result / failure
+UI --> Actor : display on EDT
+note over APP, DB
+One local SQLite transaction for final approval + postings.
+BEGIN IMMEDIATE is proposed; driver protocol must be tested.
+Same key with changed payload is a conflict.
+No postings for pending/rejected/zero shares.
+Single-step pilot; multi-step, notifications and reports deferred.
+end note
+@enduml

@@ -1,5 +1,12 @@
 @startuml
 title SplitSmart - Interim Swing MVP and Full-Product Direction
+legend bottom
+Selected Architecture A: owner-approved foundation, detailed consolidation pending review.
+Local Swing/SQLite pilot; append-only debt postings; no central pilot server.
+Payment P to Q creates compensating debt posting Q to P.
+Detailed maintained diagrams: docs/architecture-consolidated/diagrams/.
+No implementation, rendering or product acceptance implied.
+endlegend
 left to right direction
 skinparam componentStyle rectangle
 

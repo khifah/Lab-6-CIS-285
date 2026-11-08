@@ -1,0 +1,42 @@
+# ADR-C01: Select Architecture A for SplitSmart
+
+**Decision date:** 2026-11-08. **Architecture selection:** approved explicitly by the project owner in the consolidation instructions. **Detailed consolidated design:** proposed for human review; not implemented or verified.
+
+## Decision and authority
+
+Architecture A (Spec Kit) is the selected foundation: Java 21, one Maven project, Swing, local SQLite, a layered modular monolith, object-oriented domain behavior, BigDecimal, JUnit 5, and PlantUML. [Architecture A](../architecture-A-speckit/plan.md) and [Architecture B](../architecture-B-codex/architecture.md) remain preserved evaluation snapshots, including their historical shortcomings. They are not competing implementation baselines.
+
+[UserRequirements.md](../../UserRequirements.md) is the original customer authority; [requirements.md](../../requirements.md) inventories CR-001–CR-009. The [feature specification](../../specs/001-split-expense-tracking/spec.md) records behavior and clarifications; the [constitution](../../.specify/memory/constitution.md) governs engineering. [architecture.md](./architecture.md) is the proposed consolidated architecture record; canonical Spec Kit planning files are aligned with it. Customer/specification authority takes precedence over design. No constitutional amendment is requested.
+
+## Rationale and consequences
+
+1. Simpler initial implementation: fewer technologies and infrastructure components.
+2. Lower deployment complexity: no separately deployed application server for the MVP.
+3. Better immediate scope fit: a focused Java Swing demonstration.
+4. Maintainability: layered services, repositories and independent domain behavior support tests and change.
+5. Reduced initial cost: no PostgreSQL administration or central hosting during the pilot.
+6. Future extensibility: reusable application services and repository ports support later server/API and web/mobile adapters.
+
+The cost is local-only authority, no production cross-device collaboration, host-level security limits, and a later migration of identity, receipts, data and persistence to server authority. Swing does not satisfy CR-009/FR-014. Deferred requirements remain in [traceability](./requirements-traceability.md).
+
+## Alternatives and selected improvements
+
+B was evaluated but not selected: its centralized pilot, PostgreSQL, immediate HTTPS transport and multi-module Maven build add deployment and learning costs to the current demonstration. Its source-only balance aggregation is explicitly rejected in favor of A's append-only BalancePosting ledger. Microservices, production server frameworks and offline synchronization are outside this baseline.
+
+Adapt B's detailed application authorization, operation-key/fingerprint deduplication, transaction rollback scenarios, membership periods, explicit monetary invariants, token/receipt protection guidance, traceability and staged API migration. An outbox is a proposed later notification option, not a pilot feature or resolved delivery-channel policy. None of these adaptations introduces a server into the MVP.
+
+## Consistency changes and change rationale
+
+All required input files were present, including canonical planning artifacts and the specification checklist. The customer inventory and specification already preserve scope, so neither is edited. The constitution and both original architecture directories remain unchanged. Original A's broken copied relative links are left in the evaluation snapshot; the consolidated record uses working source links.
+
+| Canonical file under `specs/001-split-expense-tracking/` | Necessary change and authoritative basis |
+|---|---|
+| `plan.md` | Identify approved A selection and consolidated record; clarify zero-share posting, exact SQLite mapping and unresolved percentage policy. FR-010/011 require correct netting; no product behavior is removed. |
+| `data-model.md` | Correct payment posting direction to payee-to-payer under debt-direction semantics; add precise uniqueness, membership-period, decimal-storage and reconciliation rules by reference. A's plan already called for opposite-direction payment postings. |
+| `research.md` | Keep percentage residual options provisional and link consolidated decisions; avoid implying that tolerance or residual policy was approved. |
+| `quickstart.md` | Separate pilot checks from deferred workflows and percentage-policy gates; local pilot cannot verify undelivered requirements. |
+| `architecture.puml` | Add selection/scope note and reference the detailed consolidated diagrams while retaining local pilot topology. |
+| `contracts/platform-boundaries.md` | Link consolidated migration/authorization guidance; preserve no-network pilot boundary. |
+| `checklists/requirements.md` | Remove any implication of measured product success and reference unresolved decisions; preserve existing incomplete acceptance gates. |
+
+No source Java, POM, executable tests, database schema or migration is generated by this consolidation. No commit or push is authorized. Documentation checks are recorded in the final handoff; planned test suites are not passing evidence. Selection approval does not approve unresolved product policies or substitute for human review of these new documents.

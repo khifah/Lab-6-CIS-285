@@ -1,0 +1,167 @@
+@startuml
+title Selected Architecture A - logical SQLite model
+hide circle
+entity UserAccount as U {
+  * userId : TEXT <<PK>>
+  --
+  normalizedEmail : TEXT <<unique>>
+  passwordHash : TEXT
+}
+entity Group as G {
+  * groupId : TEXT <<PK>>
+  --
+  currencyCode : TEXT
+  minorUnitScale : INTEGER
+}
+entity Membership as M {
+  * membershipId : TEXT <<PK>>
+  --
+  groupId : TEXT <<FK>>
+  userId : TEXT <<FK>>
+  role : TEXT
+  joinedAt : TEXT
+  leftAt : TEXT
+}
+entity ApprovalPolicy as AP {
+  * policyId : TEXT <<PK>>
+  --
+  groupId : TEXT <<FK>>
+  version : INTEGER
+}
+entity ApprovalStep as ST {
+  * stepId : TEXT <<PK>>
+  --
+  policyId : TEXT <<FK>>
+  reviewerMembershipId : TEXT <<FK>>
+  sequence : INTEGER
+}
+entity Expense as E {
+  * expenseId : TEXT <<PK>>
+  --
+  groupId : TEXT <<FK>>
+  payerId : TEXT <<FK>>
+  submittedBy : TEXT <<FK>>
+  policyId : TEXT <<FK>>
+  receiptId : TEXT <<FK, nullable>>
+  amountText : TEXT
+  status : TEXT
+  expenseDate : TEXT
+  approvedAt : TEXT
+}
+entity ExpenseShare as S {
+  * expenseId : TEXT <<PK, FK>>
+  * participantId : TEXT <<PK, FK>>
+  --
+  allocatedAmountText : TEXT
+  percentageText : TEXT
+}
+entity ReviewDecision as D {
+  * decisionId : TEXT <<PK>>
+  --
+  expenseId : TEXT <<FK>>
+  stepId : TEXT <<FK>>
+  reviewerId : TEXT <<FK>>
+  decision : TEXT
+  decidedAt : TEXT
+}
+entity Payment as P {
+  * paymentId : TEXT <<PK>>
+  --
+  groupId : TEXT <<FK>>
+  payerId : TEXT <<FK>>
+  payeeId : TEXT <<FK>>
+  operationId : TEXT <<FK>>
+  amountText : TEXT
+  paymentDate : TEXT
+}
+entity BalancePosting as BP {
+  * postingId : TEXT <<PK>>
+  --
+  groupId : TEXT <<FK>>
+  fromUserId : TEXT <<FK>>
+  toUserId : TEXT <<FK>>
+  sourceType : TEXT
+  sourceId : TEXT
+  sourceLineKey : TEXT
+  amountText : TEXT
+  reversalOfPostingId : TEXT <<FK, nullable>>
+}
+entity Receipt as R {
+  * receiptId : TEXT <<PK>>
+  --
+  storageKey : TEXT
+  checksum : TEXT
+  state : TEXT
+}
+entity OperationRecord as O {
+  * operationId : TEXT <<PK>>
+  --
+  actorId : TEXT <<FK>>
+  operationType : TEXT
+  requestKey : TEXT
+  payloadFingerprint : TEXT
+  resourceId : TEXT
+}
+entity AuditEvent as A {
+  * auditId : TEXT <<PK>>
+  --
+  operationId : TEXT <<FK>>
+  actorId : TEXT <<FK>>
+  occurredAt : TEXT
+}
+entity "FinancialCorrection (workflow gated)" as C {
+  * correctionId : TEXT <<PK>>
+  --
+  groupId : TEXT <<FK>>
+  originalSourceType : TEXT
+  originalSourceId : TEXT
+  authorizedBy : TEXT <<FK>>
+}
+entity "Notification (DEFERRED)" as N {
+  * notificationId : TEXT <<PK>>
+  --
+  groupId : TEXT <<FK>>
+  expenseId : TEXT <<FK>>
+  recipientId : TEXT <<FK>>
+}
+U ||--o{ M
+G ||--o{ M
+G ||--o{ AP
+AP ||--|{ ST
+M ||--o{ ST : designated reviewer
+AP ||--o{ E : snapshot
+G ||--o{ E
+U ||--o{ E : payer / submitter references
+E ||--|{ S
+U ||--o{ S
+E ||--o{ D
+ST ||--o{ D
+U ||--o{ D : reviewer
+E |o--o| R : optional receipt
+G ||--o{ P
+U ||--o{ P : payer / payee references
+G ||--o{ BP
+U ||--o{ BP : debt parties
+BP ..> E : source when EXPENSE
+BP ..> P : source when PAYMENT
+BP ..> C : source when CORRECTION
+BP |o--o{ BP : reversal reference
+G ||--o{ C
+U ||--o{ O : actor
+O ||--o{ A
+O ||--o| P
+G ||--o{ N
+E ||--o{ N
+U ||--o{ N : recipient
+note bottom of BP
+Positive, append-only debt entries; no self/zero entries.
+Unique (sourceType, sourceId, sourceLineKey).
+Polymorphic source link validated transactionally.
+Financial TEXT parsed/aggregated as Java BigDecimal.
+end note
+note bottom of M
+Unique active (groupId,userId); preserve previous periods.
+Financial history uses RESTRICT, not cascade deletion.
+ReportQuery/Result are deferred read models, not tables.
+end note
+@enduml

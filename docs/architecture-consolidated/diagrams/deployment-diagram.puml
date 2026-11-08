@@ -1,0 +1,56 @@
+@startuml
+title Selected Architecture A - current pilot and separately labeled future deployment
+left to right direction
+actor "Pilot user" as PU
+node "CURRENT DESIGN: one desktop installation" {
+  node "One Java 21 process / one Maven application" {
+    component "Swing presentation" as SW
+    component "Application + independent domain" as LOCAL
+    component "SQLite / receipt adapters" as AD
+    SW --> LOCAL : in-process use cases
+    LOCAL --> AD : ports at runtime
+  }
+  database "Local SQLite file\nsource records + append-only postings" as SQLITE
+  folder "Protected local receipts" as FILES
+  AD --> SQLITE
+  AD --> FILES
+}
+PU --> SW
+package "FUTURE PRODUCT - not pilot deployment" {
+  actor "Full-product user" as FU
+  component "Primary web UI" as WEB
+  component "Android / iOS\npossible later clients" as MOBILE
+  node "Central application server" {
+    component "Versioned HTTPS / server authentication" as API
+    component "Reused application/domain\nserver authorization + transactions" as SERVER
+    component "Server persistence / receipt adapters" as SA
+    component "Notifications / Reporting / multi-step approval\nDEFERRED" as FUT
+    API --> SERVER
+    SERVER --> SA
+    SERVER --> FUT
+  }
+  database "Central relational database\nchoice deferred; retain posting ledger" as CENTRAL
+  folder "Private server receipt storage" as STORE
+  cloud "Verification/reset + notice delivery\nchannel/operations to be specified" as DELIVERY
+  FU --> WEB
+  FU --> MOBILE
+  WEB --> API : HTTPS
+  MOBILE --> API : HTTPS
+  SA --> CENTRAL
+  SA --> STORE
+  FUT --> DELIVERY
+  SERVER --> DELIVERY : future account delivery
+}
+SQLITE ..> CENTRAL : future controlled import / reconciliation
+FILES ..> STORE : future checked receipt migration
+note bottom of SW
+Local accounts and data authority only.
+No pilot API/server/cross-device collaboration.
+Swing does not satisfy CR-009 / FR-014.
+end note
+note bottom of API
+Web acceptance requires a usable browser interface.
+Server authority replaces local authority after controlled cutover.
+No dual-write/offline synchronization implied.
+end note
+@enduml

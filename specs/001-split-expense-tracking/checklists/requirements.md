@@ -26,10 +26,12 @@
 
 - [ ] All functional requirements have clear acceptance criteria
 - [x] User scenarios cover primary flows
-- [x] Feature meets measurable outcomes defined in Success Criteria
+- [ ] Feature meets measurable outcomes defined in Success Criteria (implementation, measurement and acceptance evidence not yet available)
 - [x] Customer requirements and implementation decisions are clearly separated
 
 ## Notes
+
+- Architecture A was owner-selected. See the [consolidated clarification log](../../../docs/architecture-consolidated/requirements-clarification-log.md), [traceability](../../../docs/architecture-consolidated/requirements-traceability.md), and [change rationale](../../../docs/architecture-consolidated/architecture-decision-record.md). Checklist marks describe document quality unless explicitly backed by executed evidence; no product acceptance is established.
 
 - The platform scope is recorded as an interim Swing desktop pilot followed by a primary web-based product; the pilot does not satisfy CR-009.
 - Requirements testability and complete acceptance coverage remain unchecked while percentage tolerance, notification delivery, overpayment/transfer behavior, report filters, and permitted expense/payment dates remain open.

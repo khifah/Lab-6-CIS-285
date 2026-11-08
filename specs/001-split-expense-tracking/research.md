@@ -1,5 +1,7 @@
 # Architecture Research
 
+**Selected Architecture A:** [Consolidated design decisions](../../docs/architecture-consolidated/design-decisions.md) refine exact SQLite storage, authorization, idempotency and migration while retaining one local Swing/SQLite deployment and the posting ledger. See [ADR/change rationale](../../docs/architecture-consolidated/architecture-decision-record.md). These are proposed designs, not tested implementation evidence.
+
 ## Java 21 and Maven
 
 **Decision**: Use Java 21 and Maven's standard source layout; configure the Maven Compiler Plugin with `release` 21.
@@ -26,7 +28,7 @@
 
 **Rationale**: Binary floating-point cannot represent many decimal amounts exactly. `BigDecimal` supports explicit rounding, but non-terminating division needs a rounding mode, and `equals` is scale-sensitive; use `compareTo` for numeric comparisons. The spec leaves percentage tolerance open, so the baseline requires an exact 100% total pending a product decision.
 
-**Alternatives considered**: Floating-point money is rejected by the constitution. A largest-remainder policy is possible for percentages but is not adopted here because the spec does not choose it; the proposed baseline instead rounds down and assigns the residual to the payer, subject to review.
+**Alternatives considered**: Floating-point money is rejected by the constitution. Both largest-remainder and residual-to-payer percentage policies require human decision; neither is approved by this research. The original residual-to-payer suggestion remains a proposal only. Block affected percentage-rounding implementation until resolved; do not confuse the confirmed equal-split payer remainder with percentage policy.
 
 **Sources**: [Java SE 21 BigDecimal API](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/math/BigDecimal.html); [Java SE 21 RoundingMode API](https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/math/RoundingMode.html); [spec.md assumptions and open questions](./spec.md).
 

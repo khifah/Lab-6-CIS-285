@@ -1,0 +1,43 @@
+@startuml
+title Selected Architecture A - pilot components and compile-time dependencies
+left to right direction
+skinparam componentStyle rectangle
+package "Presentation" {
+  component "Swing views / presenters\nEDT updates; background I/O" as UI
+}
+package "Application" {
+  component "Account / Group / Expense / Review\nPayment / Balance use cases\nauthorization + transactions + request keys" as APP
+  interface "Repository / UnitOfWork ports" as REPO
+  interface "Receipt / external delivery ports" as IO
+  component "Notifications / Reporting\nDEFERRED full-product use cases" as FUT
+}
+package "Domain (no Swing / JDBC / filesystem)" {
+  component "Accounts | Groups | Expenses | Approvals\nBalances | Payments\nMoney / allocation / posting rules" as DOMAIN
+}
+package "Infrastructure" {
+  component "SQLite adapters\nexact decimal TEXT" as SQL
+  component "Managed receipt files" as FILES
+  component "External delivery adapter\nDEFERRED" as DELIVERY
+}
+component "Desktop composition root" as ROOT
+UI --> APP : invokes
+APP --> DOMAIN : rules
+APP --> REPO : port dependency
+APP --> IO : port dependency
+FUT --> DOMAIN
+FUT --> REPO
+FUT --> IO
+SQL ..|> REPO : implements
+FILES ..|> IO : implements receipt port
+DELIVERY ..|> IO : future implementation
+ROOT ..> UI
+ROOT ..> APP
+ROOT ..> SQL
+ROOT ..> FILES
+note bottom of APP
+One Java 21 process / one Maven project.
+No pilot HTTP API or central server.
+Financial transactions are synchronous and atomic.
+Notifications/reports remain deferred requirements.
+end note
+@enduml

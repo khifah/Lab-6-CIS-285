@@ -1,0 +1,43 @@
+@startuml
+title Selected Architecture A - atomic manual payment and retry
+actor Member
+participant "Swing presenter\nbackground worker" as UI
+participant "RecordPayment use case" as APP
+participant "Domain payment / posting rules" as DOMAIN
+database "Local SQLite\nUnitOfWork adapter" as DB
+Member -> UI : Record completed settlement P pays Q
+UI -> APP : authenticated actor + details + stable operation key
+APP -> DB : begin write; load operation key
+alt committed matching fingerprint
+  DB --> APP : saved result
+  APP -> DB : end without new payment/posting
+else same key with different fingerprint
+  APP -> DB : rollback
+  APP --> UI : conflict
+else new key
+  APP -> DB : claim key; load current membership and pair balance
+  APP -> DOMAIN : validate actor/parties/currency/amount/approved policy
+  alt invalid or unresolved overpayment branch
+    APP -> DB : rollback
+    APP --> UI : validation / policy error
+  else valid payment
+    APP -> DOMAIN : create compensation Q -> P
+    APP -> DB : insert Payment + unique settlement posting + audit/result
+    alt insert/commit fails
+      APP -> DB : rollback complete transaction
+      APP --> UI : error or unknown outcome
+    else commit succeeds
+      APP -> DB : commit
+      APP --> UI : saved payment
+    end
+  end
+end
+UI --> Member : display on EDT
+note over UI, DB
+Retry unknown outcomes using original operation key.
+Payment P -> Q creates debt posting Q -> P.
+A owes B 12; A pays B 5; net debt is 7.
+No transfers initiated and no silent deletion/correction.
+Financial values are BigDecimal / exact TEXT, never REAL.
+end note
+@enduml

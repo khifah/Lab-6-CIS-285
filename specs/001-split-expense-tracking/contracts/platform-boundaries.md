@@ -1,5 +1,7 @@
 # Platform Boundary Contract
 
+**Selected Architecture A:** The [consolidated architecture](../../../docs/architecture-consolidated/architecture.md) and [migration strategy](../../../docs/architecture-consolidated/migration-strategy.md) detail authorization, reusable services and controlled import. Original A/B documents remain evaluation snapshots. This alignment does not introduce an MVP network boundary.
+
 ## Interim Swing MVP
 
 - The Java Swing desktop application has no external network API in this MVP.
